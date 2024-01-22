@@ -2,39 +2,57 @@ class SnøLag:
     def __init__(self, K_s: float, K_i: float) -> None:
         self.K_s = K_s
         self.K_i = K_i
-        self.lag = [Sno(K_s)]
+        self.lag: list[Is | Sno] = []
+    
+    @property
+    def ingen_sno(self):
+        return self.antall_snø_lag() == 0
 
     @property
-    def topp_lag(self):
-        if len(self.lag) == 0:
-            self.lag.append(Sno(self.K_s))
+    def øverste_lag(self):
         return self.lag[-1]
+    
+    @property
+    def antall_snø_lag(self):
+        return len(self.lag)
 
     @property
     def dybde(self):
         return sum([lag.dybde for lag in self.lag])
-
-    def smelting(self, temp) -> float:
-        vann_i_systemet = 0
-        vann_i_snøen = self.topp_lag.smelting(temp)
-        if self.topp_lag.dybde == 0:
+    
+    def fjerne_øverste_lag_dersom_smeltet(self):
+        if self.øverste_lag.dybde == 0:
             self.lag.pop()
-        if len(self.lag) < 2:
-            vann_i_systemet = vann_i_snøen
+
+    def absorbering_av_vann_fra_øvrige_lag(self, vann_i_snøen) -> float:
+        """Absorberer av vann i underliggende snø, dersom det er et lag med snø
+        så går vannet ut i systemet """
+        if self.antall_snø_lag == 1:
+            return vann_i_snøen
         else:
             self.lag[-2].absorbering(vann_i_snøen)
+            return 0
+            
+    
+    def smelting(self, temp) -> float:
+        if self.ingen_sno():
+            return 0
+        vann_i_snøen = self.øverste_lag.smelting(temp)
+        self.fjerne_øverste_lag_dersom_smeltet()
+        vann_i_systemet = self.absorbering_av_vann_fra_øvrige_lag(vann_i_snøen)
 
         return vann_i_systemet
 
-    def snøfall(self, snofall):
-        if isinstance(self.topp_lag, Is):
+    def snøfall(self, snofall: float):
+        if self.ingen_sno() or isinstance(self.øverste_lag, Is):
             self.lag.append(Sno(self.K_s))
-        self.topp_lag.snøfall(snofall)
+        self.øverste_lag.snøfall(snofall)
 
     def minus(self):
-        if self.topp_lag.fuktighet > 0:
-            self.lag.append(Is(self.K_i, self.topp_lag.fuktighet))
-
+        if self.ingen_sno:
+            return
+        if self.øverste_lag.fuktighet > 0:
+            self.lag.append(Is(self.K_i, self.øverste_lag.fuktighet))
 
 class Sno:
     def __init__(self, K_s: float) -> None:
@@ -48,10 +66,14 @@ class Sno:
             return 1
         return rate
 
-    def absorbering(self, vann):
+    def absorbering(self, vann: float):
+        """Absorberer vann i snøen"""
+
         self._fuktighet = self._fuktighet + vann
 
     def smelting(self, temp) -> float:
+        """Smelter snøen og returnerer smeltet vann
+        gitt at funktighet er større enn 60% av dybde"""
         smeltet_vann = 0
         self._fuktighet = self._snøsmelte_rate(temp) * self._dybde
         self._dybde = self._dybde - self._fuktighet
@@ -60,7 +82,8 @@ class Sno:
             self._fuktighet = 0
         return smeltet_vann
 
-    def snøfall(self, nedbør):
+    def snøfall(self, nedbør: float):
+        """Økning av snydybde ved snøfall"""
         self._dybde = self._dybde + nedbør
 
     @property
@@ -71,15 +94,11 @@ class Sno:
     def fuktighet(self):
         return self._fuktighet
 
-    @fuktighet.setter
-    def fuktighet(self, value: float):
-        self._fuktighet = value
-
 
 class Is:
     def __init__(self, K_i: float, dybde: float = 0) -> None:
         self.K_i = K_i
-        self.dybde = dybde
+        self._dybde = dybde
 
     def _is_smelte_rate(self, temp):
         rate = self.K_i * temp
@@ -87,17 +106,20 @@ class Is:
             return 1
         return rate
 
-    def absorbering(self, vann):
-        self.dybde = self.dybde + vann
-
     def smelting(self, temp) -> float:
-        vann = self._is_smelte_rate(temp) * self.dybde
-        self.dybde = self.dybde - vann
+        """Smelting av is og returnerer smeltet vann"""
+        vann = self._is_smelte_rate(temp) * self._dybde
+        self._dybde = self._dybde - vann
         return vann
 
-    def dannelse(self, smeltet_sno):
-        self.dybde = self.dybde + smeltet_sno
+    def dannelse(self, smeltevann):
+        """Dannelse av is ved at smeltetvann fryser til is"""
+        self._dybde = self._dybde + smeltevann
+    
+    def absorbering(self, vann: float):
+        """Absorberer vann i isen"""
+        self.dannelse(vann)
 
     @property
-    def fuktighet(self):
-        return 0
+    def dybde(self):
+        return self._dybde
