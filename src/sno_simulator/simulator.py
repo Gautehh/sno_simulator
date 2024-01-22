@@ -2,21 +2,21 @@ from io import TextIOWrapper
 from sno import SnøLag
 
 
-def snø_simulator(file: TextIOWrapper, lag: SnøLag):
-    vann_i_systemet = []
+def snø_simulator(file: TextIOWrapper, snø_lag: SnøLag):
+    vann_ute_av_systemet = []
     snødybde = []
     tid = []
     for line in file.readlines():
         vann = 0
-        time, nedbør, temp = line.split(";")
+        time, nedbør, tempratur = line.split(";")
         nedbør = float(nedbør)
-        temp = float(temp)
+        temp = float(tempratur)
         if temp < 0:
-            lag.snøfall(nedbør)
-            lag.minus()
+            snø_lag.snøfall(nedbør)
+            snø_lag.is_dannelse()
         else:
-            vann = lag.smelting(temp)
-        vann_i_systemet.append(vann)
-        snødybde.append(lag.dybde)
+            vann = snø_lag.smelting(temp)
+        vann_ute_av_systemet.append(vann)
+        snødybde.append(snø_lag.dybde)
         tid.append(time)
-    return tid, vann_i_systemet, snødybde
+    return tid, vann_ute_av_systemet, snødybde

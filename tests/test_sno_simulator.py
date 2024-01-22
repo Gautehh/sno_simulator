@@ -24,7 +24,7 @@ def sno_geilo_file(get_current_dir) -> Iterator[TextIOWrapper]:
         yield f
 
 
-def test_sno_simulator_ett_lag(sno_test_file: Iterator[TextIOWrapper]):
+def test_sno_simulator_sample(sno_test_file: Iterator[TextIOWrapper]):
     snø_lag = SnøLag(0.05, 0.08)
     tid, vann_i_systemet, snø_dybde = snø_simulator(sno_test_file, snø_lag)
     assert tid == [
